@@ -13,6 +13,5 @@ int load_image();
 bool parseCommandLine(int ac, const char **av); 
 
 
-extern char* pixels;
 
 #endif // TESTIL_H_

@@ -15,25 +15,37 @@ int rows = 2;
 int col = 2; 
 char* filename;
 bool print = false;
+unsigned char* pixels;
 
-struct tile {
+typedef struct{
     int x,y;
-    char* pix_buf;
-};
+    unsigned char* pix_buf;
+}Tile;
 
 void send_tiles(){
+  int pixels_offset = 0;
   for(int y=0; y<(height/tile_size); y++){
     for(int x=0; x<(width/tile_size); x++){
-      printf("Init position of tile: X: %d , Y: %d \n", (x*tile_size), (y*tile_size));
-      struct tile tile;
-      tile.x = (x*tile_size);
-      tile.y = (y*tile_size);
-      tile.pix_buf = malloc(tile_size*tile_size*4);
+      Tile tile_obj;
+      tile_obj.x = (x*tile_size);
+      tile_obj.y = (y*tile_size);
+      printf("Init position of tile: X: %d , Y: %d \n", tile_obj.x, tile_obj.y);
+      tile_obj.pix_buf = (unsigned char*)malloc(tile_size*tile_size*4);
+      int pix_line = 0;
+
       for(int j=(y*tile_size); j<((y+1)*tile_size); j++){
-        for(int i=(x*tile_size); i<((x+1)*tile_size); i++){
-          printf("Getting pixel in position: X: %d , Y: %d \n", i, j);
-        }
+        printf("Y position: %d, X position: %d \n" , j, x*tile_size);
+        memcpy(&tile_obj.pix_buf[pix_line*tile_size*4], &pixels[pixels_offset], sizeof(unsigned char)*4*tile_size);
+        // for(int l = 0; l <tile_size*4; l++){
+        //   printf("PixBuff[%d]: %d \n", l ,tile_obj.pix_buf[l+(pix_line*tile_size*4)]);
+        //   printf("Pixels[%d]: %d \n", l ,pixels[l+pixels_offset]);
+        // }
+        pix_line++;
+        pixels_offset = pixels_offset + (4*tile_size);  
       }
+      
+      printf("Tile in position: X: %d , Y: %d created. \n\n", tile_obj.x, tile_obj.y);
+      
     }  
   }
 }
@@ -41,29 +53,34 @@ void send_tiles(){
 /* read_pixels works for getting all the rgba values from the framebuffer that is bind to the window.
  It stores the values in a global GLubyte array called pixels and then prints the values in console*/
 void read_pixels(){
-  GLubyte pixels[width][height][4];
+  pixels = (unsigned char*)malloc(height*width*4);
   glReadBuffer(GL_FRONT);
   glPixelStorei(GL_UNPACK_ALIGNMENT,1);
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
-  glReadPixels( 0, 0, width, height, GL_RGBA, GL_BYTE, &pixels);
+  glReadPixels( 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   if(print){
-        for(int i = 0; i < width; i++)
-        {
-            for(int j = 0; j < height; j++)
-            {
-                printf("X: %d , Y: %d \n", i, j);
-                printf( "R: %d ", (int)pixels[i][j][0] );
+    for(int i = 0; i < width; i++)
+    {
+      for(int j = 0; j < height; j++)
+      {
+        printf("X: %d , Y: %d \n", i, j);
+        printf( "R: %d ", (int)pixels[offset(i,j,0)] );
 
-                printf( "G: %d ", (int)pixels[i][j][1] );
+        printf( "G: %d ", (int)pixels[offset(i,j,1)] );
 
-                printf( "B: %d ", (int)pixels[i][j][2] ); 
+        printf( "B: %d ", (int)pixels[offset(i,j,2)] ); 
 
-                printf( "A: %d \n", (int)pixels[i][j][3] );
+        printf( "A: %d \n", (int)pixels[offset(i,j,3)] );
 
-                printf( "============================================= \n");
-            }
-        }
+        printf( "============================================= \n");
+      }
     }
+  }
+  send_tiles();
+}
+
+int offset(int x, int y, int z) { 
+    return (z * width * height) + (y * width) + x; 
 }
 
 /* Handler for window-repaint event. Called back when the window first appears and
@@ -230,7 +247,7 @@ int main(int argc, char **argv)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texid, 0);  
     printf("File: %s. RGBA loaded. Width: %d ,Height: %d \n", filename, width, height);  
     //read_pixels();
-    send_tiles();
+    
 
     /* Main loop */
     glutMainLoop();
