@@ -35,18 +35,7 @@ void receive_tiles(){
     ierr = MPI_Recv( buff, (tile_size*tile_size*4), MPI_BYTE, root_process, 1, MPI_COMM_WORLD, &status);
     tile_obj.pix_buf = &buff;
     tiles_array[x] = tile_obj;
-    // int pix_line = 0;
-    // for(int l = 0; l <tile_size*4; l++){
-    //   printf("PixBuff[%d]: %d \n", l ,tile_obj.pix_buf[l+(pix_line*tile_size*4)]);
-    // }
-    //printf("tile size: %d and buffer size is: %d \n\n",sizeof(tile_obj), sizeof(tile_obj.pix_buf));
-
   }
-  
-  
-
-    //printf("I'm process %d. I have %d tiles \n", my_id, sizeof(tiles_array)/sizeof(struct Tile));  
-  
 }
 
 /* send_tiles is a function that creates all the tiles to be passed to the other processes, this function is used only by the root process.
@@ -70,15 +59,9 @@ void send_tiles(){
 
       for(int j=(y*tile_size); j<((y+1)*tile_size); j++){
         memcpy(&tile_obj.pix_buf[pix_line*tile_size*4], &pixels[pixels_offset], sizeof(unsigned char)*4*tile_size);
-        // for(int l = 0; l <tile_size*4; l++){
-        //   printf("PixBuff[%d]: %d \n", l ,tile_obj.pix_buf[l+(pix_line*tile_size*4)]);
-        //   //printf("Pixels[%d]: %d \n", l ,pixels[l+pixels_offset]);
-        // }
         pix_line++;
         pixels_offset = pixels_offset + (4*tile_size);  
       }
-      
-      //printf("Tile in position: X: %d , Y: %d created. \n", tile_obj.x, tile_obj.y);
 
       int process_to_send; 
       int min = -1;
@@ -105,18 +88,11 @@ void send_tiles(){
             tiles_array[tile_elements_index] = tile_obj;
             tile_elements_index++;
           }else{
-            // int pix_line = 0;
-            // for(int l = 0; l <tile_size*4; l++){
-            //   printf("PixBuff[%d]: %d \n", l ,tile_obj.pix_buf[l+(pix_line*tile_size*4)]);
-            
-            // }
-            // printf("tile size: %d and buffer size is: %d \n\n",sizeof(tile_obj), sizeof(tile_obj.pix_buf));
             ierr = MPI_Send( &tile_obj, sizeof(tile_obj), MPI_BYTE, process_to_send, 0, MPI_COMM_WORLD);
             ierr = MPI_Send( tile_obj.pix_buf, (tile_size*tile_size*4), MPI_BYTE, process_to_send, 1, MPI_COMM_WORLD);
 
           }
           tags[process_to_send]++;
-          //printf("Tiles sent to process %d at this moment: %d \n\n", process_to_send , tags[process_to_send]);
         }
         it++;
       }
@@ -162,8 +138,7 @@ int get_process(int x, int y){
 void read_pixels(){
   pixels = (unsigned char*)malloc(height*width*4);
   glReadBuffer(GL_FRONT);
-  glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  glPixelStorei(GL_PACK_ALIGNMENT,1);
   glReadPixels( 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   if(print){
     for(int i = 0; i < width; i++)
@@ -198,38 +173,24 @@ void display()
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
   glMatrixMode(GL_MODELVIEW);     // Operate on model-view matrix
 
-  // /* Draw a quad */
-  // glBegin(GL_QUADS);
-  //     glTexCoord2i(0, 0); glVertex2i(0,   0);
-  //     glTexCoord2i(0, 1); glVertex2i(0,   height);
-  //     glTexCoord2i(1, 1); glVertex2i(width, height);
-  //     glTexCoord2i(1, 0); glVertex2i(width, 0);
-  // glEnd();
+  int L = sqrt(num_procs);
+  int BW = width/L; 
+  int BH = height/L;
+  pixels = malloc(width * height *4);
+  int X0 = BW * my_id%L;
+  int Y0 = BH * my_id/L;
 
-  
-  pixels = (unsigned char*)calloc(height*width*4, sizeof(unsigned char));
-
-  // while(max<=expected_tiles){
-  //   for(int tile_line=0; tile_line<tile_size; tile_line++){
-  //     int x_pos=0;
-  //     for(int i= min; i<max; i++){
-  //       memcpy(&pixels[data_offset], &tiles_array[i].pix_buf[tile_line*tile_size*4], sizeof(unsigned char)*4*tile_size);
-  //       data_offset = data_offset+(4*tile_size);
-  //     }
-  //   }
-  //   max += tiles_per_line;
-  //   min += tiles_per_line;
-  // }
   for(int i=0; i<expected_tiles; i++){
-    int data_offset =  (tiles_array[i].y * (width/col) + tiles_array[i].x)*4;
-    printf("Process:%d, DataOffset: %d , tile[%d] \n\n", my_id ,data_offset, i);
-    printf("X: %d, Y: %d \n", tiles_array[i].x ,tiles_array[i].y);
+    int xt = tiles_array[i].x - X0;
+    int yt = tiles_array[i].y - Y0;
     for(int j=0; j<tile_size; j++){
-      memcpy(&pixels[data_offset + j * tile_size * 4], &tiles_array[i].pix_buf[j*tile_size * 4], sizeof(unsigned char)*tile_size * 4);
-    }
+      int offset = ((yt + j) * BW + xt)*4;
+      memcpy(&pixels[offset],&tiles_array[i].pix_buf[j*tile_size*4], sizeof(unsigned char)*tile_size*4);
+    }      
   }
 
-  glDrawPixels( width/col, height/rows, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
+
+  glDrawPixels( width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
     
   glutSwapBuffers();  
 } 
@@ -285,7 +246,6 @@ int load_image()
            {
               return -1;
            }
-        
     }
     else
         return -1;
