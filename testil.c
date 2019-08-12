@@ -177,9 +177,8 @@ void display()
   int BW = width/L; 
   int BH = height/L;
   pixels = malloc(width * height *4);
-  int X0 = BW * my_id%L;
-  int Y0 = BH * my_id/L;
-
+  int X0 = BW * (my_id%L);
+  int Y0 = BH * (my_id/L);
   for(int i=0; i<expected_tiles; i++){
     int xt = tiles_array[i].x - X0;
     int yt = tiles_array[i].y - Y0;
